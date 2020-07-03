@@ -59,6 +59,7 @@ namespace Explorer.Components
                 var isolator = reader.GetString() == "true";
 
                 reader.Read(); // ignore key type
+                reader.Read(); // ignore comment
 
                 return (name, isolator);
             }
