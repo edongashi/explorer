@@ -60,6 +60,7 @@ namespace Aircloak.JsonApi
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> object that can be used to cancel the operation.</param>
         /// <returns>A <c>List&lt;DataSource&gt;</c> containing the data sources provided by this
         /// Aircloak instance.</returns>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
         public async Task<DataSourceCollection> GetDataSources(
             Uri apiUrl,
             CancellationToken cancellationToken)
@@ -79,6 +80,9 @@ namespace Aircloak.JsonApi
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> object that can be used to cancel the operation.</param>
         /// <returns>A <see cref="QueryResult{TRow}"/> instance containing the success status and query Id.</returns>
         /// <typeparam name="TRow">The type that the query row will be deserialized to.</typeparam>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
+        /// <exception cref="Exceptions.QueryException">The Aircloak Api could not process the query.</exception>
+        /// <exception cref="Exceptions.ResultException">The Aircloak Api result status is "Error"</exception>
         public async Task<QueryResult<TRow>> Query<TRow>(
             Uri apiUrl,
             string dataSource,
@@ -98,6 +102,8 @@ namespace Aircloak.JsonApi
         /// <param name="queryStatement">The query statement as a string.</param>
         /// <param name="cancellationToken">A <c>CancellationToken</c> that cancels the returned <c>Task</c>.</param>
         /// <returns>A QueryResonse instance containing the success status and query Id.</returns>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
+        /// <exception cref="Exceptions.QueryException">The Aircloak Api could not process the query.</exception>
         public async Task<QueryResponse> SubmitQuery(
             Uri apiUrl,
             string dataSource,
@@ -120,8 +126,9 @@ namespace Aircloak.JsonApi
 
             if (!queryResponse.Success)
             {
-                throw new Exception($"Unhandled Aircloak error returned for query to {dataSource}. Query Statement:" +
-                                    $" {queryStatement}.");
+                throw new Exceptions.QueryException(
+                    $"Unhandled Aircloak error returned for query to {dataSource}. " +
+                    $"Query Statement: {queryStatement}.");
             }
             return queryResponse;
         }
@@ -141,6 +148,8 @@ namespace Aircloak.JsonApi
         /// <typeparam name="TRow">The type to use to deserialise each row returned in the query results.</typeparam>
         /// <returns>A QueryResult instance. If the query has finished executing, contains the query results, with each
         /// row seralised to type <c>TRow</c>.</returns>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
+        /// <exception cref="Exceptions.ResultException">The Aircloak Api result status is "Error"</exception>
         public async Task<QueryResult<TRow>> PollQueryUntilComplete<TRow>(
             Uri apiUrl,
             string queryId,
@@ -180,7 +189,7 @@ namespace Aircloak.JsonApi
                             case "completed":
                                 return queryResult;
                             case "error":
-                                throw new Exception("Aircloak API query error.\n" +
+                                throw new Exceptions.ResultException("Aircloak API query error.\n" +
                                     GetQueryResultDetails(query, queryResult));
                             case "cancelled":
                                 throw new OperationCanceledException("Aircloak API query canceled.\n" +
@@ -242,6 +251,7 @@ namespace Aircloak.JsonApi
         /// <param name="queryId">The id of the query to cancel.</param>
         /// <returns>A <c>CancelResponse</c> instance indicating whether or not the query was indeed canceled.
         /// </returns>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
         public async Task<CancelResponse> CancelQuery(
             Uri apiUrl,
             string queryId)
@@ -260,6 +270,7 @@ namespace Aircloak.JsonApi
         /// <exception cref="HttpRequestException">The request failed due to an underlying issue
         /// such as network connectivity, DNS failure, server certificate validation or timeout.
         /// </exception>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
         private async Task<HttpResponseMessage> ApiGetRequest(
             Uri apiEndpoint,
             CancellationToken cancellationToken)
@@ -277,6 +288,7 @@ namespace Aircloak.JsonApi
         /// <exception cref="HttpRequestException">The request failed due to an underlying issue
         /// such as network connectivity, DNS failure, server certificate validation or timeout.
         /// </exception>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
         private async Task<HttpResponseMessage> ApiPostRequest(
             Uri apiEndpoint,
             string? requestContent,
@@ -296,6 +308,7 @@ namespace Aircloak.JsonApi
         /// <exception cref="HttpRequestException">The request failed due to an underlying issue
         /// such as network connectivity, DNS failure, server certificate validation or timeout.
         /// </exception>
+        /// <exception cref="Exceptions.ApiException">The Aircloak Api returned a Http Error code.</exception>
         private async Task<HttpResponseMessage> ApiRequest(
             HttpMethod requestMethod,
             Uri apiEndpoint,
@@ -324,7 +337,7 @@ namespace Aircloak.JsonApi
             if (!response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Request Error: {ServiceError(response)}.\n{requestMessage}\n{requestContent}\n{responseContent}");
+                throw new Exceptions.ApiException($"Request Error: {ServiceError(response)}.\n{requestMessage}\n{requestContent}\n{responseContent}");
             }
 
             return response;
