@@ -35,11 +35,10 @@ namespace Aircloak.JsonApi.JsonConversion
 
             var value = query.ParseRow(ref reader);
 
-            // Read ']' Token
-            reader.Read();
-            if (reader.TokenType != JsonTokenType.EndArray)
+            // Read until end of array
+            while (reader.TokenType != JsonTokenType.EndArray)
             {
-                throw new JsonException($"Expected end of {typeof(TRow)} array, got {reader.TokenType} token: `{reader.GetString()}`.");
+                reader.Read();
             }
 
             return value;
